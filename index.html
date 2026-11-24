@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon-Noir 3D Sudoku</title>
+
+  <!-- Replace YOUR-USERNAME and YOUR-REPO-NAME with your GitHub details, and upload 1.jpg to the same repo root -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Neon-Noir 3D Sudoku" />
+  <meta property="og:description" content="Play 3D Neon-Noir Sudoku with Easy, Medium, and Hard modes, Lo-Fi background music, and audio rules." />
+  <meta property="og:image" content="https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/1.png" />
+  <meta property="og:url" content="https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Neon-Noir 3D Sudoku" />
+  <meta name="twitter:description" content="Play 3D Neon-Noir Sudoku with Easy, Medium, and Hard modes, Lo-Fi background music, and audio rules." />
+  <meta name="twitter:image" content="https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/1.jpg" />
+
+  <style>
+    /* ================= style.css ================= */
+    :root {
+      --bg-deep: #070913;
+      --bg-mid: #120d26;
+      --bg-accent: #091d2b;
+      --panel-bg: rgba(12, 16, 32, 0.9);
+      --cell-bg: rgba(16, 22, 44, 0.88);
+      --cell-selected: rgba(34, 52, 92, 0.96);
+      --cell-highlight: rgba(24, 34, 66, 0.92);
+      --text-main: #f1f5f9;
+      --text-muted: #cbd5e1;
+      --text-clue: #ffffff;
+      --text-user: #7dd3fc;
+      --text-error: #fda4af;
+      --neon-cyan: #22d3ee;
+      --neon-magenta: #e879f9;
+      --neon-violet: #818cf8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text-main);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(129, 140, 248, 0.22), transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(232, 121, 249, 0.18), transparent 48%),
+        radial-gradient(circle at 50% 90%, rgba(34, 211, 238, 0.18), transparent 52%),
+        linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-mid) 52%, var(--bg-accent) 100%);
+      overflow-x: hidden;
+    }
+
+    /* No text glow or blinking text anywhere */
+    h1, h2, p, span, button, select, div {
+      text-shadow: none !important;
+      animation-name: none;
+    }
+
+    @keyframes neonBorderPulse {
+      0%, 100% {
+        border-color: var(--neon-cyan);
+        box-shadow:
+          0 0 10px rgba(34, 211, 238, 0.55),
+          inset 0 0 8px rgba(34, 211, 238, 0.25),
+          0 16px 34px rgba(0, 0, 0, 0.65);
+      }
+      50% {
+        border-color: var(--neon-magenta);
+        box-shadow:
+          0 0 14px rgba(232, 121, 249, 0.65),
+          inset 0 0 10px rgba(232, 121, 249, 0.28),
+          0 16px 34px rgba(0, 0, 0, 0.65);
+      }
+    }
+
+    @keyframes subGridBorderPulse {
+      0%, 100% {
+        border-color: rgba(34, 211, 238, 0.85);
+      }
+      50% {
+        border-color: rgba(232, 121, 249, 0.85);
+      }
+    }
+
+    @keyframes controlBorderPulse {
+      0%, 100% {
+        border-color: var(--neon-cyan);
+        box-shadow:
+          0 0 8px rgba(34, 211, 238, 0.45),
+          0 6px 14px rgba(0, 0, 0, 0.5);
+      }
+      50% {
+        border-color: var(--neon-violet);
+        box-shadow:
+          0 0 10px rgba(129, 140, 248, 0.55),
+          0 6px 14px rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      width: 100%;
+      padding: 18px 16px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      perspective: 1100px;
+    }
+
+    .game-stage {
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transform: rotateX(3deg) rotateY(-1.5deg);
+      transform-style: preserve-3d;
+      transition: transform 0.25s ease;
+    }
+
+    .game-stage:hover {
+      transform: rotateX(1deg) rotateY(0deg);
+    }
+
+    .top-panel {
+      background: var(--panel-bg);
+      border: 2px solid var(--neon-cyan);
+      border-radius: 16px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation-name: neonBorderPulse !important;
+      animation-duration: 3.2s !important;
+      animation-iteration-count: infinite !important;
+      animation-timing-function: ease-in-out !important;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .brand-title {
+      font-size: clamp(1.25rem, 3.2vw, 1.7rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--text-main);
+    }
+
+    .difficulty-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .diff-btn,
+    .ctrl-btn,
+    .num-btn {
+      background: rgba(15, 23, 48, 0.95);
+      color: var(--text-main);
+      border: 1.5px solid var(--neon-cyan);
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.14s ease, background-color 0.14s ease;
+      animation-name: controlBorderPulse !important;
+      animation-duration: 3.6s !important;
+      animation-iteration-count: infinite !important;
+      animation-timing-function: ease-in-out !important;
+    }
+
+    .diff-btn {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+
+    .diff-btn.active {
+      background: rgba(34, 211, 238, 0.22);
+      color: #ffffff;
+    }
+
+    .diff-btn:hover,
+    .ctrl-btn:hover,
+    .num-btn:hover {
+      transform: translateY(-2px);
+      background: rgba(30, 44, 82, 0.98);
+    }
+
+    .diff-btn:active,
+    .ctrl-btn:active,
+    .num-btn:active {
+      transform: translateY(0);
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: rgba(9, 13, 27, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    .ctrl-btn {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      flex: 1 1 auto;
+      min-width: 110px;
+    }
+
+    .board-frame {
+      background: var(--panel-bg);
+      border: 2.5px solid var(--neon-cyan);
+      border-radius: 18px;
+      padding: 10px;
+      animation-name: neonBorderPulse !important;
+      animation-duration: 3s !important;
+      animation-iteration-count: infinite !important;
+      animation-timing-function: ease-in-out !important;
+    }
+
+    .sudoku-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      background: rgba(7, 10, 22, 0.95);
+      border: 2px solid var(--neon-cyan);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--cell-bg);
+      color: var(--text-user);
+      font-size: clamp(1rem, 3.6vw, 1.65rem);
+      font-weight: 700;
+      user-select: none;
+      cursor: pointer;
+      border-right: 1px solid rgba(148, 163, 184, 0.24);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+      transition: background-color 0.12s ease;
+    }
+
+    .cell:nth-child(9n) {
+      border-right: none;
+    }
+
+    .cell:nth-child(n + 73) {
+      border-bottom: none;
+    }
+
+    /* Blinking borders on 3x3 sub-grid dividers */
+    .cell.box-right {
+      border-right-width: 2.5px;
+      animation-name: subGridBorderPulse !important;
+      animation-duration: 2.8s !important;
+      animation-iteration-count: infinite !important;
+      animation-timing-function: ease-in-out !important;
+    }
+
+    .cell.box-bottom {
+      border-bottom-width: 2.5px;
+      animation-name: subGridBorderPulse !important;
+      animation-duration: 2.8s !important;
+      animation-iteration-count: infinite !important;
+      animation-timing-function: ease-in-out !important;
+    }
+
+    .cell.clue {
+      color: var(--text-clue);
+      font-weight: 800;
+    }
+
+    .cell.error {
+      color: var(--text-error);
+      background: rgba(127, 29, 29, 0.36);
+    }
+
+    .cell.highlight {
+      background: var(--cell-highlight);
+    }
+
+    .cell.same-num {
+      background: rgba(56, 189, 248, 0.2);
+    }
+
+    .cell.selected {
+      background: var(--cell-selected);
+      outline: 2px solid #ffffff;
+      outline-offset: -2px;
+      z-index: 2;
+    }
+
+    .bottom-panel {
+      background: var(--panel-bg);
+      border: 2px solid var(--neon-magenta);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation-name: neonBorderPulse !important;
+      animation-duration: 3.4s !important;
+      animation-iteration-count: infinite !important;
+      animation-timing-function: ease-in-out !important;
+    }
+
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 7px;
+    }
+
+    .num-btn {
+      aspect-ratio: 1 / 1.08;
+      font-size: clamp(1rem, 3vw, 1.3rem);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .status-banner {
+      min-height: 24px;
+      text-align: center;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .rules-box {
+      background: rgba(8, 12, 26, 0.92);
+      border: 1.5px solid var(--neon-cyan);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      display: none;
+      animation-name: controlBorderPulse !important;
+      animation-duration: 4s !important;
+      animation-iteration-count: infinite !important;
+      animation-timing-function: ease-in-out !important;
+    }
+
+    .rules-box.open {
+      display: block;
+    }
+
+    @media (max-width: 520px) {
+      .game-stage {
+        transform: none;
+      }
+
+      .numpad {
+        gap: 5px;
+      }
+
+      .ctrl-btn {
+        font-size: 0.8rem;
+        padding: 7px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="game-stage" aria-label="Neon-Noir 3D Sudoku">
+      <header class="top-panel">
+        <div class="title-row">
+          <h1 class="brand-title">NEON-NOIR 3D SUDOKU</h1>
+          <div class="difficulty-group" role="group" aria-label="Difficulty Level">
+            <button type="button" class="diff-btn active" data-difficulty="easy">Easy</button>
+            <button type="button" class="diff-btn" data-difficulty="medium">Medium</button>
+            <button type="button" class="diff-btn" data-difficulty="hard">Hard</button>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <span class="stat-label">Mistakes</span>
+            <span class="stat-value" id="mistakesDisplay">0 / 3</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Timer</span>
+            <span class="stat-value" id="timerDisplay">00:00</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Hints Left</span>
+            <span class="stat-value" id="hintsDisplay">3</span>
+          </div>
+        </div>
+
+        <div class="toolbar-row">
+          <button type="button" class="ctrl-btn" id="newGameBtn">New Game</button>
+          <button type="button" class="ctrl-btn" id="musicToggleBtn">Lo-Fi Music: OFF</button>
+          <button type="button" class="ctrl-btn" id="rulesAudioBtn">Rules & Audio</button>
+        </div>
+
+        <div class="rules-box" id="rulesBox">
+          <strong>Rules:</strong> Fill each row, column, and 3x3 box with digits 1–9 without repeats.
+          You have 3 mistakes max and 3 hints per game. Use keyboard (1–9, Backspace/Delete, Arrow keys) or the bottom pad.
+        </div>
+      </header>
+
+      <div class="board-frame">
+        <div class="sudoku-grid" id="sudokuGrid" role="grid" aria-label="Sudoku Grid"></div>
+      </div>
+
+      <footer class="bottom-panel">
+        <div class="status-banner" id="statusBanner">Select a cell and enter numbers 1–9.</div>
+
+        <div class="numpad" id="numpad" aria-label="Number Pad">
+          <button type="button" class="num-btn" data-num="1">1</button>
+          <button type="button" class="num-btn" data-num="2">2</button>
+          <button type="button" class="num-btn" data-num="3">3</button>
+          <button type="button" class="num-btn" data-num="4">4</button>
+          <button type="button" class="num-btn" data-num="5">5</button>
+          <button type="button" class="num-btn" data-num="6">6</button>
+          <button type="button" class="num-btn" data-num="7">7</button>
+          <button type="button" class="num-btn" data-num="8">8</button>
+          <button type="button" class="num-btn" data-num="9">9</button>
+        </div>
+
+        <div class="action-bar">
+          <button type="button" class="ctrl-btn" id="eraseBtn">Erase</button>
+          <button type="button" class="ctrl-btn" id="hintBtn">Hint</button>
+          <button type="button" class="ctrl-btn" id="restartSameBtn">Reset Board</button>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <script>
+    /* ================= script.js ================= */
+    (() => {
+      const MAX_MISTAKES = 3;
+      const MAX_HINTS = 3;
+      const CLUES_BY_DIFFICULTY = {
+        easy: 42,
+        medium: 32,
+        hard: 24
+      };
+
+      const state = {
+        difficulty: "easy",
+        solution: [],
+        initialPuzzle: [],
+        board: [],
+        errors: Array.from({ length: 9 }, () => Array(9).fill(false)),
+        selectedRow: 0,
+        selectedCol: 0,
+        mistakes: 0,
+        hintsLeft: MAX_HINTS,
+        seconds: 0,
+        gameOver: false,
+        won: false,
+        musicOn: false
+      };
+
+      const gridEl = document.getElementById("sudokuGrid");
+      const mistakesEl = document.getElementById("mistakesDisplay");
+      const timerEl = document.getElementById("timerDisplay");
+      const hintsEl = document.getElementById("hintsDisplay");
+      const statusBannerEl = document.getElementById("statusBanner");
+      const musicToggleBtn = document.getElementById("musicToggleBtn");
+      const rulesAudioBtn = document.getElementById("rulesAudioBtn");
+      const rulesBoxEl = document.getElementById("rulesBox");
+      const newGameBtn = document.getElementById("newGameBtn");
+      const eraseBtn = document.getElementById("eraseBtn");
+      const hintBtn = document.getElementById("hintBtn");
+      const restartSameBtn = document.getElementById("restartSameBtn");
+      const numpadEl = document.getElementById("numpad");
+      const diffButtons = Array.from(document.querySelectorAll(".diff-btn"));
+
+      let timerInterval = null;
+
+      // Web Audio API Lo-Fi Synth + Tone Rules Cue
+      let audioCtx = null;
+      let lofiInterval = null;
+      let stepIndex = 0;
+
+      const lofiChords = [
+        [220.0, 261.63, 329.63, 392.0], // Am7
+        [174.61, 220.0, 261.63, 349.23], // Fmaj7
+        [130.81, 164.81, 196.0, 246.94], // Cmaj7
+        [196.0, 246.94, 293.66, 349.23]  // G7
+      ];
+
+      function ensureAudioContext() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
+        }
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume().catch(() => {});
+        }
+      }
+
+      function playLofiStep() {
+        if (!state.musicOn || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        const chord = lofiChords[Math.floor(stepIndex / 4) % lofiChords.length];
+        const noteFreq = chord[stepIndex % chord.length];
+
+        const osc = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(noteFreq, now);
+
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(780, now);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.045, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.68);
+        stepIndex += 1;
+      }
+
+      function setMusicState(enabled) {
+        state.musicOn = enabled;
+        if (enabled) {
+          ensureAudioContext();
+          musicToggleBtn.textContent = "Lo-Fi Music: ON";
+          if (!lofiInterval) {
+            playLofiStep();
+            lofiInterval = window.setInterval(playLofiStep, 700);
+          }
+        } else {
+          musicToggleBtn.textContent = "Lo-Fi Music: OFF";
+          if (lofiInterval) {
+            clearInterval(lofiInterval);
+            lofiInterval = null;
+          }
+        }
+      }
+
+      function playRulesAudio() {
+        rulesBoxEl.classList.toggle("open");
+        ensureAudioContext();
+
+        const rulesText =
+          "Sudoku Rules: Fill every row, column, and three by three box with numbers one through nine with no repeats. You have three mistakes and three hints.";
+
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(rulesText);
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          window.speechSynthesis.speak(utterance);
+        }
+
+        if (audioCtx) {
+          const notes = [440, 554.37, 659.25];
+          notes.forEach((freq, idx) => {
+            const start = audioCtx.currentTime + idx * 0.11;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, start);
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.exponentialRampToValueAtTime(0.04, start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(start);
+            osc.stop(start + 0.15);
+          });
+        }
+      }
+
+      function shuffleArray(arr) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      }
+
+      function isSafePlacement(grid, row, col, num) {
+        for (let c = 0; c < 9; c++) {
+          if (grid[row][c] === num) return false;
+        }
+        for (let r = 0; r < 9; r++) {
+          if (grid[r][col] === num) return false;
+        }
+        const boxRowStart = Math.floor(row / 3) * 3;
+        const boxColStart = Math.floor(col / 3) * 3;
+        for (let r = boxRowStart; r < boxRowStart + 3; r++) {
+          for (let c = boxColStart; c < boxColStart + 3; c++) {
+            if (grid[r][c] === num) return false;
+          }
+        }
+        return true;
+      }
+
+      function fillGrid(grid) {
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < 9; c++) {
+            if (grid[r][c] === 0) {
+              const candidates = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+              for (const num of candidates) {
+                if (isSafePlacement(grid, r, c, num)) {
+                  grid[r][c] = num;
+                  if (fillGrid(grid)) return true;
+                  grid[r][c] = 0;
+                }
+              }
+              return false;
+            }
+          }
+        }
+        return true;
+      }
+
+      function generatePuzzle(difficulty) {
+        const solved = Array.from({ length: 9 }, () => Array(9).fill(0));
+        fillGrid(solved);
+
+        const puzzle = solved.map((row) => row.slice());
+        const cluesCount = CLUES_BY_DIFFICULTY[difficulty] || 32;
+        const totalCells = 81;
+        const positions = shuffleArray(Array.from({ length: totalCells }, (_, idx) => idx));
+        const cellsToRemove = totalCells - cluesCount;
+
+        for (let i = 0; i < cellsToRemove; i++) {
+          const pos = positions[i];
+          const r = Math.floor(pos / 9);
+          const c = pos % 9;
+          puzzle[r][c] = 0;
+        }
+
+        return { solved, puzzle };
+      }
+
+      function startTimer() {
+        stopTimer();
+        timerInterval = window.setInterval(() => {
+          if (!state.gameOver && !state.won) {
+            state.seconds += 1;
+            updateTimerDisplay();
+          }
+        }, 1000);
+      }
+
+      function stopTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      function updateTimerDisplay() {
+        const mins = String(Math.floor(state.seconds / 60)).padStart(2, "0");
+        const secs = String(state.seconds % 60).padStart(2, "0");
+        timerEl.textContent = `${mins}:${secs}`;
+      }
+
+      function updateStatsDisplay() {
+        mistakesEl.textContent = `${state.mistakes} / ${MAX_MISTAKES}`;
+        hintsEl.textContent = String(state.hintsLeft);
+        updateTimerDisplay();
+      }
+
+      function checkWinCondition() {
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < 9; c++) {
+            if (state.board[r][c] !== state.solution[r][c]) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }
+
+      function handleNumberInput(num) {
+        if (state.gameOver || state.won) return;
+        const r = state.selectedRow;
+        const c = state.selectedCol;
+        if (state.initialPuzzle[r][c] !== 0) {
+          statusBannerEl.textContent = "Initial clue cells cannot be changed.";
+          return;
+        }
+
+        state.board[r][c] = num;
+
+        if (state.solution[r][c] === num) {
+          state.errors[r][c] = false;
+          statusBannerEl.textContent = `Placed ${num} at row ${r + 1}, column ${c + 1}.`;
+          if (checkWinCondition()) {
+            state.won = true;
+            stopTimer();
+            statusBannerEl.textContent = `Victory! Completed ${state.difficulty.toUpperCase()} Sudoku in ${timerEl.textContent}.`;
+          }
+        } else {
+          state.errors[r][c] = true;
+          state.mistakes += 1;
+          updateStatsDisplay();
+          if (state.mistakes >= MAX_MISTAKES) {
+            state.gameOver = true;
+            stopTimer();
+            statusBannerEl.textContent = "Game Over! You reached 3 mistakes. Click New Game to try again.";
+          } else {
+            statusBannerEl.textContent = `${num} is not correct here. Mistake ${state.mistakes} of ${MAX_MISTAKES}.`;
+          }
+        }
+
+        renderGrid();
+      }
+
+      function handleErase() {
+        if (state.gameOver || state.won) return;
+        const r = state.selectedRow;
+        const c = state.selectedCol;
+        if (state.initialPuzzle[r][c] !== 0) {
+          statusBannerEl.textContent = "Cannot erase a fixed clue cell.";
+          return;
+        }
+        state.board[r][c] = 0;
+        state.errors[r][c] = false;
+        statusBannerEl.textContent = `Cleared row ${r + 1}, column ${c + 1}.`;
+        renderGrid();
+      }
+
+      function handleHint() {
+        if (state.gameOver || state.won) return;
+        if (state.hintsLeft <= 0) {
+          statusBannerEl.textContent = "No hints remaining for this game.";
+          return;
+        }
+
+        let targetR = state.selectedRow;
+        let targetC = state.selectedCol;
+
+        if (
+          state.initialPuzzle[targetR][targetC] !== 0 ||
+          state.board[targetR][targetC] === state.solution[targetR][targetC]
+        ) {
+          let found = false;
+          for (let r = 0; r < 9 && !found; r++) {
+            for (let c = 0; c < 9 && !found; c++) {
+              if (state.initialPuzzle[r][c] === 0 && state.board[r][c] !== state.solution[r][c]) {
+                targetR = r;
+                targetC = c;
+                found = true;
+              }
+            }
+          }
+          if (!found) return;
+        }
+
+        const correctVal = state.solution[targetR][targetC];
+        state.board[targetR][targetC] = correctVal;
+        state.errors[targetR][targetC] = false;
+        state.selectedRow = targetR;
+        state.selectedCol = targetC;
+        state.hintsLeft -= 1;
+        updateStatsDisplay();
+
+        if (checkWinCondition()) {
+          state.won = true;
+          stopTimer();
+          statusBannerEl.textContent = `Victory! Completed ${state.difficulty.toUpperCase()} Sudoku in ${timerEl.textContent}.`;
+        } else {
+          statusBannerEl.textContent = `Hint used: placed ${correctVal} at row ${targetR + 1}, column ${targetC + 1}.`;
+        }
+
+        renderGrid();
+      }
+
+      function renderGrid() {
+        gridEl.innerHTML = "";
+        const selectedVal = state.board[state.selectedRow][state.selectedCol];
+        const selBoxR = Math.floor(state.selectedRow / 3);
+        const selBoxC = Math.floor(state.selectedCol / 3);
+
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < 9; c++) {
+            const cellBtn = document.createElement("button");
+            cellBtn.type = "button";
+            cellBtn.className = "cell";
+            cellBtn.setAttribute("role", "gridcell");
+            cellBtn.setAttribute("aria-label", `Row ${r + 1} Column ${c + 1}`);
+
+            if (c === 2 || c === 5) cellBtn.classList.add("box-right");
+            if (r === 2 || r === 5) cellBtn.classList.add("box-bottom");
+
+            const val = state.board[r][c];
+            if (val !== 0) {
+              cellBtn.textContent = String(val);
+            }
+
+            if (state.initialPuzzle[r][c] !== 0) {
+              cellBtn.classList.add("clue");
+            } else if (state.errors[r][c]) {
+              cellBtn.classList.add("error");
+            }
+
+            const sameRowOrCol = r === state.selectedRow || c === state.selectedCol;
+            const sameBox = Math.floor(r / 3) === selBoxR && Math.floor(c / 3) === selBoxC;
+
+            if (r === state.selectedRow && c === state.selectedCol) {
+              cellBtn.classList.add("selected");
+            } else if (sameRowOrCol || sameBox) {
+              cellBtn.classList.add("highlight");
+            } else if (val !== 0 && val === selectedVal) {
+              cellBtn.classList.add("same-num");
+            }
+
+            cellBtn.addEventListener("click", () => {
+              state.selectedRow = r;
+              state.selectedCol = c;
+              renderGrid();
+            });
+
+            gridEl.appendChild(cellBtn);
+          }
+        }
+      }
+
+      function startNewGame(difficulty = state.difficulty) {
+        state.difficulty = difficulty;
+        diffButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.difficulty === difficulty);
+        });
+
+        const { solved, puzzle } = generatePuzzle(difficulty);
+        state.solution = solved;
+        state.initialPuzzle = puzzle.map((row) => row.slice());
+        state.board = puzzle.map((row) => row.slice());
+        state.errors = Array.from({ length: 9 }, () => Array(9).fill(false));
+        state.selectedRow = 0;
+        state.selectedCol = 0;
+        state.mistakes = 0;
+        state.hintsLeft = MAX_HINTS;
+        state.seconds = 0;
+        state.gameOver = false;
+        state.won = false;
+
+        updateStatsDisplay();
+        renderGrid();
+        startTimer();
+        statusBannerEl.textContent = `New ${difficulty.toUpperCase()} game started. Good luck!`;
+      }
+
+      function resetCurrentBoard() {
+        if (!state.initialPuzzle.length) return;
+        state.board = state.initialPuzzle.map((row) => row.slice());
+        state.errors = Array.from({ length: 9 }, () => Array(9).fill(false));
+        state.mistakes = 0;
+        state.hintsLeft = MAX_HINTS;
+        state.seconds = 0;
+        state.gameOver = false;
+        state.won = false;
+
+        updateStatsDisplay();
+        renderGrid();
+        startTimer();
+        statusBannerEl.textContent = "Board reset to initial clues.";
+      }
+
+      // Event Listeners
+      diffButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          startNewGame(btn.dataset.difficulty);
+        });
+      });
+
+      newGameBtn.addEventListener("click", () => {
+        startNewGame(state.difficulty);
+      });
+
+      restartSameBtn.addEventListener("click", () => {
+        resetCurrentBoard();
+      });
+
+      eraseBtn.addEventListener("click", handleErase);
+      hintBtn.addEventListener("click", handleHint);
+
+      musicToggleBtn.addEventListener("click", () => {
+        setMusicState(!state.musicOn);
+      });
+
+      rulesAudioBtn.addEventListener("click", playRulesAudio);
+
+      numpadEl.addEventListener("click", (e) => {
+        const target = e.target.closest(".num-btn");
+        if (!target) return;
+        const num = Number(target.dataset.num);
+        if (num >= 1 && num <= 9) {
+          handleNumberInput(num);
+        }
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.key >= "1" && e.key <= "9") {
+          e.preventDefault();
+          handleNumberInput(Number(e.key));
+        } else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") {
+          e.preventDefault();
+          handleErase();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          state.selectedRow = (state.selectedRow + 8) % 9;
+          renderGrid();
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          state.selectedRow = (state.selectedRow + 1) % 9;
+          renderGrid();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          state.selectedCol = (state.selectedCol + 8) % 9;
+          renderGrid();
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          state.selectedCol = (state.selectedCol + 1) % 9;
+          renderGrid();
+        }
+      });
+
+      // Initialize game
+      startNewGame("easy");
+    })();
+  </script>
+</body>
+</html>
